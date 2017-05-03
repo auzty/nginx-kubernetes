@@ -1,0 +1,38 @@
+upstream {{ .InternalDomain }} {
+ server {{ .FullInternalName }}:{{ .Port }};
+}
+
+# redirect to https if already have ssl
+#server {
+#  server_name {{ .Domain }};
+#  return 301 $scheme://{{ .Domain }}$request_uri;
+#}
+
+server {
+  listen 80;
+
+  server_name {{ .InternalDomain }} {{ .Domain }};
+
+  server_tokens off;
+
+# template for certificate if the client using ssl
+# ssl_certificate /etc/letsencrypt/live/{{ .InternalDomain }}/fullchain.pem;
+# ssl_certificate_key /etc/letsencrypt/live/{{ .InternalDomain }}/privkey.pem;
+
+  location / {
+    try_files $uri $uri.html $uri/index.html @{{ .InternalDomain }};
+  }
+
+  location @{{ .InternalDomain }} {
+    proxy_read_timeout 60;
+    proxy_connect_timeout 60;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+
+    proxy_pass http://{{ .InternalDomain }};
+  }
+}
+
+# for first time / the client didn't use ssl
